@@ -174,28 +174,44 @@ public with sharing class DMLOperations {
      * @param oppNames The list of Opportunity names.
      */
     public static void upsertOpportunities(String accountName, List<String> oppNames) {
-        //See if account exists or create it if it doesn't
-        Account account = [SELECT Id FROM Account WHERE Name = :accountName];
-
-        
+        // Try to find the account
+        Account account;
+        try {
+            account = [SELECT Id FROM Account WHERE Name = :accountName LIMIT 1];
+        } catch (QueryException e) {
+            account = null;
+        }
+    
+        // If account doesn't exist, create it
         if (account == null) {
             account = new Account(Name = accountName);
             upsert account;
         }
-        //Create a list to hold the opportunities
-        //List<Opportunity> oppsTOUpsert = new List<Opportunity>();
-
-
+    
+        // Create a list to hold the opportunities
+        List<Opportunity> oppsToUpsert = new List<Opportunity>();
+    
         // Loop through each Opportunity name
-        for (String oppName : oppNames){
-            // Create an Opportunity with the given name
-            Opportunity opp = new Opportunity (Name = oppName, StageName = 'Qualification', CloseDate = Date.today().addMonths(3), Amount = 50000, AccountId = account.Id);
-            upsert opp;
-         //   oppsTOUpsert.add(opp);
+        for (String oppName : oppNames) {
+            Opportunity opp;
+            try {
+                opp = [SELECT Id FROM Opportunity WHERE Name = :oppName LIMIT 1];
+            } catch (QueryException e) {
+                opp = null;
+            }
+            
+            // If Opportunity doesn't exist, create it
+            if (opp == null) {
+                opp = new Opportunity(Name = oppName, StageName = 'Qualification', CloseDate = Date.today().addMonths(3), Amount = 50000, AccountId = account.Id);
+
+            oppsToUpsert.add(opp);
         }
-        // Upsert the opportunities
-         //   upsert oppsToUpsert;
     }
+    
+        // Upsert the opportunities
+        upsert oppsToUpsert;
+    }
+    
     
     /**
      * Question 9
